@@ -15,6 +15,23 @@ The ShakyBets page reads `data/projects.json` live from this repo, so updates sh
 To change the page's *code*, run `node build.mjs`, copy `site/ClaudesProjectDashboard.html` into the ShakyBets-Site repo's `auth/` folder,
 and run `./deploy.sh auth` from that repo.
 
+## Currently running
+
+The top of the dashboard shows what's running right now on the **MacBook Pro**, the **M4 Mini** and in the **cloud**.
+
+One-time setup:
+1. On the server, add `SB_RUNNING_KEY=<random>` to `/etc/shakybets-auth.env` (make one with `openssl rand -hex 32`),
+   then `systemctl restart shakybets-auth`.
+2. On each Mac, clone this repo and run `reporter/install.sh macbook "MacBook Pro"` (or `reporter/install.sh mini "M4 Mini"`
+   on the Mini). Paste the same key when asked.
+
+The installer adds three Claude Code hooks to `~/.claude/settings.json` (backed up first) and a launchd job that reports every minute.
+It shows Claude Code sessions that are mid-task, plus any process using 50%+ CPU for 10+ minutes (e.g. solver training).
+To give a job a friendly name, add it to `"watch"` in `~/.unfinished-business/config.json`, e.g.
+`{"name": "Stud High training", "pattern": "studhi"}`. Remove everything with `reporter/uninstall.sh`.
+Machines and jobs show live on the ShakyBets page only. Cloud sessions are live in the Claude app view and appear
+on the ShakyBets page as of the last sync.
+
 ## Changing things
 
 - **Ask Claude:** in a Claude Code session on this repo, say "update my dashboard" or "move Red Baron to Complete".

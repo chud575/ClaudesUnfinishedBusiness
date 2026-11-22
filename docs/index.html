@@ -81,6 +81,28 @@ header.top { display: flex; align-items: flex-end; justify-content: space-betwee
 .waiting li span { color: var(--ink); opacity: .85; min-width: 0; }
 @media (max-width: 560px) { .waiting li button { grid-template-columns: 1fr; gap: 0; } }
 
+/* Currently running */
+.running { display: grid; gap: 10px; }
+.running-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.running-head h2 { margin: 0; font: 600 12px/1 var(--f-body); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.machines { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.machine { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.machine-top { display: flex; align-items: center; gap: 8px; }
+.machine-top b { font: 700 16px/1.2 var(--f-display); }
+.machine-top .state { margin-left: auto; color: var(--muted); }
+.live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--abandoned); flex: none; }
+.live-dot.on { background: var(--complete); box-shadow: 0 0 0 3px color-mix(in srgb, var(--complete) 25%, transparent); }
+.live-dot.busy { background: var(--progress); box-shadow: 0 0 0 3px color-mix(in srgb, var(--progress) 25%, transparent); }
+@media (prefers-reduced-motion: no-preference) { .live-dot.busy { animation: pulse 1.6s ease-in-out infinite; } @keyframes pulse { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--progress) 0%, transparent); } } }
+.jobs { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.jobs li { display: grid; gap: 1px; min-width: 0; }
+.jobs .t { font-weight: 500; font-size: 14px; overflow-wrap: anywhere; }
+.jobs .t a { color: inherit; text-decoration: none; }
+.jobs .t a:hover { text-decoration: underline; }
+.jobs .m { color: var(--muted); }
+.kind { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; padding: 1px 6px; border-radius: 4px; background: var(--sunken); color: var(--muted); margin-right: 6px; vertical-align: 1px; }
+.idle { color: var(--muted); font-size: 14px; margin: 0; }
+
 /* Tabs + toolbar */
 .tabs { display: flex; gap: 4px; background: var(--sunken); padding: 4px; border-radius: 12px; overflow-x: auto; }
 .tab { flex: 1; border: 0; background: transparent; border-radius: 9px; padding: 9px 12px; font-weight: 600; color: var(--muted); display: flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; }
@@ -152,6 +174,11 @@ footer.foot { color: var(--muted); font-size: 13px; display: grid; gap: 4px; }
     </div>
     <div class="actions" id="actions"></div>
   </header>
+
+  <section class="running" aria-labelledby="running-h">
+    <div class="running-head"><h2 id="running-h">Currently running</h2><span class="mono" id="running-meta" style="color:var(--muted)"></span></div>
+    <div class="machines" id="machines"></div>
+  </section>
 
   <section class="waiting" id="waiting" hidden aria-labelledby="waiting-h">
     <h2 id="waiting-h">Waiting on you</h2>
@@ -317,6 +344,7 @@ footer.foot { color: var(--muted); font-size: 13px; display: grid; gap: 4px; }
       actions.append(el("button", { class: "btn", onclick: openSettings }, "Settings"));
     }
 
+    renderRunning();
     const waiting = ps.filter((p) => p.waiting && p.category === "in_progress").sort((a, b) => (b.updated || "").localeCompare(a.updated || ""));
     $("#waiting").hidden = !waiting.length;
     $("#waiting-h").textContent = `Waiting on you · ${waiting.length}`;
@@ -367,6 +395,96 @@ footer.foot { color: var(--muted); font-size: 13px; display: grid; gap: 4px; }
       el("h3", { text: p.name }),
       p.status ? el("p", { class: "status", text: p.status }) : null,
       p.next ? el("p", { class: "next" }, el("b", { text: "Next: " }), p.next) : null);
+  }
+
+  // ---------- currently running ----------
+  // MacBook + M4 Mini: their reporters post to the ShakyBets server every minute (site mode reads /auth/running).
+  // Cloud: live from Claude's own session list in the Claude app view; elsewhere the last sync's snapshot.
+  const MACHINES = [{ slug: "macbook", label: "MacBook Pro" }, { slug: "mini", label: "M4 Mini" }];
+  const STALE_SECS = 180;
+  const run = { reports: null, reportsAt: 0, serverNow: 0, live: null, liveErr: "" };
+  const dur = (secs) => {
+    if (secs == null || secs < 0) return "";
+    const m = Math.floor(secs / 60), h = Math.floor(m / 60), d = Math.floor(h / 24);
+    return d ? `${d}d ${h % 24}h` : h ? `${h}h ${m % 60}m` : `${Math.max(1, m)}m`;
+  };
+  const clock = (ms) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+
+  function jobItem(it, kind, nowSecs) {
+    const title = it.id ? el("a", { href: sessionUrl(it.id), target: "_blank", rel: "noopener" }, it.title || "Claude session") : (it.title || "Working");
+    const bits = [it.folder, it.detail, it.since ? "for " + dur(nowSecs - it.since) : ""].filter(Boolean).join(" · ");
+    return el("li", {}, el("span", { class: "t" }, el("span", { class: "kind", text: kind }), title), bits ? el("span", { class: "m mono", text: bits }) : null);
+  }
+  function tile(label, state, stateText, items, idleText) {
+    const busy = items.length > 0;
+    return el("div", { class: "machine" },
+      el("div", { class: "machine-top" }, el("span", { class: "live-dot" + (state === "live" ? (busy ? " busy" : " on") : "") }), el("b", { text: label }), el("span", { class: "state mono", text: stateText })),
+      busy ? el("ul", { class: "jobs" }, ...items) : el("p", { class: "idle", text: idleText }));
+  }
+
+  function renderRunning() {
+    const nowSecs = Math.floor(Date.now() / 1000);
+    const tiles = [];
+    const reports = run.reports || {};
+    const machineSlugs = [...MACHINES.map((m) => m.slug), ...Object.keys(reports).filter((k) => !MACHINES.some((m) => m.slug === k))];
+    for (const slug of machineSlugs) {
+      const label = (MACHINES.find((m) => m.slug === slug) || {}).label || reports[slug]?.label || slug;
+      const r = reports[slug];
+      if (CFG.mode !== "site") {
+        // Claude app view / app: Remote Control sessions on the MacBook are visible live; jobs only on the ShakyBets page
+        const remote = slug === "macbook" && run.live ? run.live.filter((s) => s.environment_kind === "bridge") : null;
+        if (remote) tiles.push(tile(label, "live", "Remote Control", remote.map((s) => jobItem(s, "Claude", nowSecs)), "No Remote Control session working. Jobs show on the ShakyBets dashboard."));
+        else tiles.push(tile(label, "unknown", "", [], "Shown live on the ShakyBets dashboard."));
+        continue;
+      }
+      if (!run.reports) { tiles.push(tile(label, "unknown", run.reportsErr ? "unavailable" : "loading", [], run.reportsErr || "Checking…")); continue; }
+      if (!r) { tiles.push(tile(label, "unknown", "not set up", [], "No reports yet. Install the reporter on this machine.")); continue; }
+      const age = (run.serverNow || nowSecs) - r.reported_at;
+      if (age > STALE_SECS) { tiles.push(tile(label, "offline", "offline", [], `Last heard from ${dur(age)} ago (asleep, off, or reporter stopped).`)); continue; }
+      const items = [...(r.sessions || []).map((s) => jobItem(s, "Claude", nowSecs)), ...(r.jobs || []).map((j) => jobItem(j, "Job", nowSecs))];
+      tiles.push(tile(label, "live", "live", items, "Idle"));
+    }
+    // Cloud
+    if (run.live) {
+      const cloud = run.live.filter((s) => s.environment_kind !== "bridge");
+      tiles.push(tile("Cloud", "live", "live", cloud.map((s) => jobItem(s, "Claude", nowSecs)), "No cloud sessions working."));
+    } else {
+      const snap = data.running;
+      const cloud = (snap && snap.cloud) || [];
+      const asOf = snap && snap.asOf ? "as of " + new Date(snap.asOf).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "no snapshot yet";
+      tiles.push(tile("Cloud", "snapshot", asOf, cloud.map((s) => jobItem(s, "Claude", nowSecs)), CFG.mode === "artifact" && run.liveErr ? `Live list unavailable (${run.liveErr}). Nothing was running at the last sync.` : "Nothing was running at the last sync. Live cloud status is in the Claude app view."));
+    }
+    $("#machines").replaceChildren(...tiles);
+    $("#running-meta").textContent = run.reportsAt || run.liveAt ? "updated " + clock(Math.max(run.reportsAt, run.liveAt || 0)) : "";
+  }
+
+  async function pollMachines() {
+    try {
+      const r = await fetch("/auth/running", { cache: "no-store", credentials: "same-origin" });
+      if (!r.ok) throw new Error(r.status === 403 || r.status === 401 ? "Sign in as an admin to see machines." : "Server said " + r.status);
+      const j = await r.json();
+      run.reports = Object.fromEntries(j.machines.map((m) => [m.machine, m]));
+      run.serverNow = j.now; run.reportsAt = Date.now(); run.reportsErr = "";
+    } catch (e) { run.reportsErr = e.message || "Couldn't reach the server."; }
+    renderRunning();
+  }
+
+  async function watchClaudeSessions() {
+    let mcp = null;
+    try { mcp = await window.claude?.use?.("mcp"); } catch {}
+    if (!mcp) { run.liveErr = "not available here"; return renderRunning(); }
+    mcp.watchTool("Claude Code Remote", "list_sessions", { mine: true, limit: 50 }, (ev) => {
+      if (ev.type === "data") {
+        const p = ev.result?.payload || {};
+        const list = p.data || p.ccr?.data || p.sessions || [];
+        run.live = list.filter((s) => /WORKING/.test(s.status_bucket || "")).map((s) => ({
+          id: s.id, title: s.title, environment_kind: s.environment_kind, detail: s.task_summary || "",
+          since: s.created_at ? Math.floor(Date.parse(s.created_at) / 1000) : null,
+        }));
+        run.liveAt = Date.now(); run.liveErr = "";
+      } else { run.liveErr = ev.error?.code || "error"; }
+      renderRunning();
+    }, { refetchInterval: 60000 });
   }
 
   // ---------- sheets ----------
@@ -455,6 +573,9 @@ footer.foot { color: var(--muted); font-size: 13px; display: grid; gap: 4px; }
   $("#sort").addEventListener("change", (e) => { ui.sort = e.target.value; store.set("sort", ui.sort); render(); });
   if (CFG.mode === "pwa" && "serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
   load();
+  if (CFG.mode === "site") { pollMachines(); setInterval(pollMachines, 60000); }
+  if (CFG.mode === "artifact") watchClaudeSessions();
+  setInterval(renderRunning, 30000);
 })();
 </script>
 

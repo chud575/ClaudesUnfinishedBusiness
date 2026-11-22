@@ -53,3 +53,16 @@ Use `list_sessions` (mine: true) and `list_repos` from the claude-code-remote to
 - Rewrite `status`, `next` and `waiting` from the session's `post_turn_summary` (`needs_action` goes into `waiting`).
 - Never move a project the user filed as Complete or Abandoned back to In progress unless there is new activity on it.
 - Keep it non-sensitive: no IP addresses, wallet details, passwords or personal data. This repo is public.
+- Refresh the top-level `running` snapshot: `{"asOf": "<ISO time now>", "cloud": [{"title", "id", "detail"}]}` listing
+  cloud sessions (`environment_kind` = `anthropic_cloud`) whose `status_bucket` is WORKING, excluding the sync session
+  itself. `detail` = the session's `task_summary`, if any.
+
+## Currently running
+
+The "Currently running" strip has three tiles:
+- **MacBook Pro** and **M4 Mini**: each machine runs `reporter/` (install with `reporter/install.sh macbook "MacBook Pro"`
+  or `reporter/install.sh mini "M4 Mini"`). A Claude Code hook marks sessions mid-task, and `report.py` posts them plus
+  heavy or named jobs to `shakybetspokertools.com/auth/running/report` every minute, using the shared `SB_RUNNING_KEY`.
+  Only the ShakyBets page can read these (`GET /auth/running`, admins only).
+- **Cloud**: live in the Claude app view (the Artifact calls `list_sessions` through the Claude Code Remote connector);
+  elsewhere it shows the `running` snapshot from the last sync.
