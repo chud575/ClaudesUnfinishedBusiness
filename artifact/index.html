@@ -195,7 +195,7 @@ footer.foot { color: var(--muted); font-size: 13px; display: grid; gap: 4px; }
   let source = "";
   const ui = { tab: store.get("tab", "in_progress"), area: store.get("area", "all"), sort: store.get("sort", "recent"), q: "" };
   const settings = store.get("settings", { token: "", branch: CFG.branch });
-  const canEdit = () => CFG.mode === "pwa" && !!settings.token;
+  const canEdit = () => CFG.mode !== "artifact" && !!settings.token;
 
   // ---------- data ----------
   const b64decode = (s) => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\n/g, "")), (c) => c.charCodeAt(0)));
@@ -221,14 +221,14 @@ footer.foot { color: var(--muted); font-size: 13px; display: grid; gap: 4px; }
         data = JSON.parse(b64decode(j.content));
       } else {
         let r = await fetch(`https://raw.githubusercontent.com/${CFG.repo}/${settings.branch || CFG.branch}/${CFG.path}?t=${Date.now()}`, { cache: "no-store" }).catch(() => null);
-        if (!r || !r.ok) r = await fetch("projects.json", { cache: "no-store" });
-        if (!r.ok) throw new Error("Couldn't reach the project list.");
+        if ((!r || !r.ok) && CFG.mode === "pwa") r = await fetch("projects.json", { cache: "no-store" });
+        if (!r || !r.ok) throw new Error("Couldn't reach the project list.");
         data = await r.json();
       }
       source = "Live from GitHub";
       store.set("cache", data);
     } catch (e) {
-      if (!cached) { try { const r = await fetch("projects.json"); data = await r.json(); source = "Bundled copy"; } catch {} }
+      if (!cached && CFG.mode === "pwa") { try { const r = await fetch("projects.json"); data = await r.json(); source = "Bundled copy"; } catch {} }
       toast(e.message || "Offline. Showing your saved copy.");
     }
     render();
@@ -296,7 +296,7 @@ footer.foot { color: var(--muted); font-size: 13px; display: grid; gap: 4px; }
 
     const actions = $("#actions"); actions.replaceChildren();
     if (canEdit()) actions.append(el("button", { class: "btn primary", onclick: () => openEdit(null) }, "+ Add project"));
-    if (CFG.mode === "pwa") {
+    if (CFG.mode !== "artifact") {
       actions.append(el("button", { class: "btn", onclick: () => load().then(() => toast("Refreshed")) }, "Refresh"));
       actions.append(el("button", { class: "btn", onclick: openSettings }, "Settings"));
     }

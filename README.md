@@ -3,20 +3,17 @@
 Every project you and Claude have going, and where each one stands: **In progress**, **Complete** or **Abandoned**,
 plus a "Waiting on you" list of anything blocked on your answer.
 
-## Three ways to open it
+## Where to open it
 
 | Where | How |
 | --- | --- |
-| **Phone app** (iPhone / Android) | Open the GitHub Pages URL in Safari or Chrome → Share → **Add to Home Screen**. It opens full screen like a normal app and works offline. |
-| **Desktop app** (Mac / Windows) | Open the same URL in Chrome or Edge → click the install icon in the address bar (or Safari → File → **Add to Dock**). |
+| **shakybetspokertools.com** (main home, admins only) | Sign in, open the admin portal (`/admin`), click **Claude's project dashboard**. Direct address: `shakybetspokertools.com/ClaudesProjectDashboard.html`. Nothing public links to it, and non-admins are sent back to the home page. On a phone: open it, then Share → **Add to Home Screen**. |
 | **Inside the Claude app** | Open https://claude.ai/artifact/WvkEFL5j4uzG19Q17JkpCU. Works on any phone or computer signed in to Claude, no install needed. |
+| GitHub Pages (optional, public) | Not turned on. If you ever want it: Settings → Pages → `main`, folder `/docs`. |
 
-GitHub Pages URL (after setup): `https://chud575.github.io/ClaudesUnfinishedBusiness/`
-
-### One-time setup for the app
-
-1. The files have to be on the `main` branch.
-2. GitHub → this repo → **Settings → Pages** → Source: *Deploy from a branch* → Branch: `main`, folder `/docs` → Save.
+The ShakyBets page reads `data/projects.json` live from this repo, so updates show up there without redeploying the site.
+To change the page's *code*, run `node build.mjs`, copy `site/ClaudesProjectDashboard.html` into the ShakyBets-Site repo's `auth/` folder,
+and run `./deploy.sh auth` from that repo.
 
 ## Changing things
 

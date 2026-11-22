@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Unfinished Business</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one column workbench. Header + "waiting on you" strip, then tabbed stacks of project cards; details open in a side sheet. */
+:root {
+  --bg: #eceff3;
+  --surface: #ffffff;
+  --sunken: #e2e6ec;
+  --ink: #16202c;
+  --muted: #5b6778;
+  --line: #d3d9e1;
+  --progress: #2356c9;
+  --complete: #1b8049;
+  --abandoned: #7b8390;
+  --waiting: #b4540a;
+  --waiting-bg: #fff4e5;
+  --focus: #2356c9;
+  --shadow: 0 1px 2px rgba(22,32,44,.06), 0 4px 16px rgba(22,32,44,.06);
+  --f-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Inter", -apple-system, "Segoe UI", Roboto, system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1319; --surface: #161d26; --sunken: #1d2530; --ink: #e5eaf0; --muted: #96a1b0; --line: #283240;
+    --progress: #7ba2ff; --complete: #4cc38a; --abandoned: #858d99; --waiting: #f2a44c; --waiting-bg: #2a1f12; --focus: #7ba2ff;
+    --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1319; --surface: #161d26; --sunken: #1d2530; --ink: #e5eaf0; --muted: #96a1b0; --line: #283240;
+  --progress: #7ba2ff; --complete: #4cc38a; --abandoned: #858d99; --waiting: #f2a44c; --waiting-bg: #2a1f12; --focus: #7ba2ff;
+  --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--bg); }
+body { margin: 0; color: var(--ink); font: 15px/1.5 var(--f-body); -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 20px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 20px; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.mono { font-family: var(--f-mono); font-size: 12px; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+
+/* Header */
+header.top { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand h1 { font: 800 clamp(28px, 6vw, 40px)/1 var(--f-display); letter-spacing: -.02em; margin: 0; text-wrap: balance; }
+.brand h1 span { color: var(--muted); font-weight: 600; }
+.brand p { margin: 6px 0 0; color: var(--muted); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 8px 14px; font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn.small { padding: 5px 10px; font-size: 13px; border-radius: 8px; }
+
+/* Waiting on you */
+.waiting { background: var(--waiting-bg); border: 1px solid color-mix(in srgb, var(--waiting) 35%, transparent); border-radius: 14px; padding: 14px 16px; display: grid; gap: 8px; }
+.waiting h2 { margin: 0; font: 600 12px/1 var(--f-body); text-transform: uppercase; letter-spacing: .08em; color: var(--waiting); }
+.waiting ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.waiting li button { all: unset; cursor: pointer; display: grid; grid-template-columns: minmax(120px, 200px) 1fr; gap: 12px; padding: 6px 8px; margin: 0 -8px; border-radius: 8px; width: 100%; box-sizing: border-box; }
+.waiting li button:hover, .waiting li button:focus-visible { background: color-mix(in srgb, var(--waiting) 12%, transparent); }
+.waiting li b { font-weight: 600; }
+.waiting li span { color: var(--ink); opacity: .85; min-width: 0; }
+@media (max-width: 560px) { .waiting li button { grid-template-columns: 1fr; gap: 0; } }
+
+/* Tabs + toolbar */
+.tabs { display: flex; gap: 4px; background: var(--sunken); padding: 4px; border-radius: 12px; overflow-x: auto; }
+.tab { flex: 1; border: 0; background: transparent; border-radius: 9px; padding: 9px 12px; font-weight: 600; color: var(--muted); display: flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; }
+.tab[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.tab .count { font-family: var(--f-mono); font-size: 12px; padding: 1px 7px; border-radius: 99px; background: var(--sunken); }
+.tab .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+@media (max-width: 480px) { .tab { padding: 8px 6px; gap: 5px; font-size: 13px; min-width: 0; } .tab .dot { display: none; } .tab .count { padding: 1px 5px; } }
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.search { flex: 1 1 220px; min-width: 0; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 8px 12px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { border: 1px solid var(--line); background: transparent; border-radius: 99px; padding: 5px 12px; font-size: 13px; font-weight: 500; color: var(--muted); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+select.sort { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 7px 10px; font-size: 13px; }
+
+/* Cards */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+@media (max-width: 400px) { .grid { grid-template-columns: 1fr; } }
+.card { all: unset; box-sizing: border-box; cursor: pointer; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px 16px; display: grid; gap: 8px; align-content: start; min-width: 0; position: relative; }
+.card:hover { border-color: var(--muted); }
+.card:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.card .meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--muted); }
+.area { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; }
+.age { margin-left: auto; }
+.age.quiet { color: var(--waiting); }
+.card h3 { margin: 0; font: 700 19px/1.2 var(--f-display); letter-spacing: -.01em; text-wrap: balance; }
+.card .status { margin: 0; color: var(--ink); opacity: .88; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 14px; }
+.card .next { margin: 0; font-size: 13px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card .next b { color: var(--ink); font-weight: 600; }
+.pill { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; border: 1px solid currentColor; }
+.pill.wait { color: var(--waiting); }
+.pill.unsure { color: var(--muted); border-style: dashed; }
+.stripe { position: absolute; left: -1px; top: 14px; bottom: 14px; width: 3px; border-radius: 0 3px 3px 0; }
+.empty { border: 1px dashed var(--line); border-radius: 14px; padding: 32px 16px; text-align: center; color: var(--muted); }
+
+/* Sheet */
+.scrim { position: fixed; inset: 0; background: rgba(8,12,18,.45); z-index: 20; display: flex; justify-content: flex-end; }
+.sheet { background: var(--surface); width: min(560px, 100%); height: 100%; overflow-y: auto; padding: calc(20px + env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) calc(32px + env(safe-area-inset-bottom, 0px)) 20px; display: grid; gap: 18px; align-content: start; box-shadow: -8px 0 32px rgba(0,0,0,.2); }
+@media (max-width: 600px) { .scrim { align-items: flex-end; } .sheet { height: auto; max-height: 92%; border-radius: 18px 18px 0 0; padding-left: max(20px, env(safe-area-inset-left, 0px)); } }
+.sheet-head { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; }
+.sheet h2 { margin: 0; font: 800 26px/1.15 var(--f-display); letter-spacing: -.02em; text-wrap: balance; }
+.sheet .summary { margin: 4px 0 0; color: var(--muted); }
+.close { border: 0; background: var(--sunken); border-radius: 99px; width: 34px; height: 34px; font-size: 18px; flex: none; }
+.field h4 { margin: 0 0 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.field p { margin: 0; white-space: pre-wrap; }
+.field.wait { background: var(--waiting-bg); border-radius: 10px; padding: 10px 12px; }
+.field.wait h4 { color: var(--waiting); }
+.seg { display: flex; gap: 4px; background: var(--sunken); padding: 4px; border-radius: 10px; }
+.seg button { flex: 1; border: 0; background: transparent; padding: 7px 6px; border-radius: 7px; font-weight: 600; font-size: 13px; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.list a { color: var(--progress); text-decoration: none; word-break: break-word; }
+.list a:hover { text-decoration: underline; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+form.edit { display: grid; gap: 12px; }
+form.edit label { display: grid; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+form.edit input, form.edit textarea, form.edit select { text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 15px; color: var(--ink); border: 1px solid var(--line); background: var(--bg); border-radius: 9px; padding: 8px 10px; width: 100%; }
+form.edit textarea { min-height: 72px; resize: vertical; }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-weight: 500; z-index: 40; max-width: calc(100% - 32px); }
+footer.foot { color: var(--muted); font-size: 13px; display: grid; gap: 4px; }
+@media (prefers-reduced-motion: no-preference) { .sheet { animation: rise .18s ease-out; } @keyframes rise { from { transform: translateY(12px); opacity: .6; } } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Unfinished <span>Business</span></h1>
+      <p id="subline">Every project you and Claude have going.</p>
+    </div>
+    <div class="actions" id="actions"></div>
+  </header>
+
+  <section class="waiting" id="waiting" hidden aria-labelledby="waiting-h">
+    <h2 id="waiting-h">Waiting on you</h2>
+    <ul id="waiting-list"></ul>
+  </section>
+
+  <nav class="tabs" role="tablist" id="tabs"></nav>
+
+  <div class="toolbar">
+    <input class="search" id="q" type="search" placeholder="Search projects, repos, notes" aria-label="Search projects">
+    <div class="chips" id="areas"></div>
+    <select class="sort" id="sort" aria-label="Sort">
+      <option value="recent">Most recent</option>
+      <option value="stale">Longest quiet</option>
+      <option value="name">Name</option>
+    </select>
+  </div>
+
+  <main class="grid" id="grid">
+    <div class="empty">Loading your projects…</div>
+  </main>
+
+  <footer class="foot" id="foot"></footer>
+</div>
+
+<script>window.CUB={mode:"site"}</script>
+<script>
+(() => {
+  const CFG = Object.assign({ mode: "pwa", repo: "chud575/ClaudesUnfinishedBusiness", branch: "main", path: "data/projects.json" }, window.CUB || {});
+  const CATS = [
+    { key: "in_progress", label: "In progress", color: "var(--progress)" },
+    { key: "complete", label: "Complete", color: "var(--complete)" },
+    { key: "abandoned", label: "Abandoned", color: "var(--abandoned)" },
+  ];
+  const AREAS = ["Poker", "Games", "Health", "Other"];
+  const QUIET_DAYS = 21;
+  const $ = (s) => document.querySelector(s);
+  const el = (tag, props = {}, ...kids) => {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(props)) {
+      if (v == null || v === false) continue;
+      if (k === "class") n.className = v;
+      else if (k === "text") n.textContent = v;
+      else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+      else n.setAttribute(k, v === true ? "" : v);
+    }
+    for (const kid of kids.flat()) if (kid != null && kid !== false) n.append(kid.nodeType ? kid : document.createTextNode(kid));
+    return n;
+  };
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem("cub:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem("cub:" + k, JSON.stringify(v)); } catch {} },
+  };
+
+  let data = { projects: [] };
+  let sha = null;
+  let source = "";
+  const ui = { tab: store.get("tab", "in_progress"), area: store.get("area", "all"), sort: store.get("sort", "recent"), q: "" };
+  const settings = store.get("settings", { token: "", branch: CFG.branch });
+  const canEdit = () => CFG.mode !== "artifact" && !!settings.token;
+
+  // ---------- data ----------
+  const b64decode = (s) => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\n/g, "")), (c) => c.charCodeAt(0)));
+  const b64encode = (s) => { const bytes = new TextEncoder().encode(s); let bin = ""; for (const b of bytes) bin += String.fromCharCode(b); return btoa(bin); };
+  const api = (p) => `https://api.github.com/repos/${CFG.repo}/contents/${CFG.path}${p || ""}`;
+  const ghHeaders = () => ({ Accept: "application/vnd.github+json", Authorization: "Bearer " + settings.token });
+
+  async function load() {
+    if (CFG.mode === "artifact") {
+      const seed = document.getElementById("cub-seed");
+      data = JSON.parse(seed.textContent);
+      source = "Synced by Claude";
+      return render();
+    }
+    const cached = store.get("cache", null);
+    if (cached) { data = cached; source = "Saved copy"; render(); }
+    try {
+      if (settings.token) {
+        const r = await fetch(api(`?ref=${encodeURIComponent(settings.branch || CFG.branch)}`), { headers: ghHeaders(), cache: "no-store" });
+        if (!r.ok) throw new Error("GitHub said " + r.status + (r.status === 401 ? ". Check your token in Settings." : ""));
+        const j = await r.json();
+        sha = j.sha;
+        data = JSON.parse(b64decode(j.content));
+      } else {
+        let r = await fetch(`https://raw.githubusercontent.com/${CFG.repo}/${settings.branch || CFG.branch}/${CFG.path}?t=${Date.now()}`, { cache: "no-store" }).catch(() => null);
+        if ((!r || !r.ok) && CFG.mode === "pwa") r = await fetch("projects.json", { cache: "no-store" });
+        if (!r || !r.ok) throw new Error("Couldn't reach the project list.");
+        data = await r.json();
+      }
+      source = "Live from GitHub";
+      store.set("cache", data);
+    } catch (e) {
+      if (!cached && CFG.mode === "pwa") { try { const r = await fetch("projects.json"); data = await r.json(); source = "Bundled copy"; } catch {} }
+      toast(e.message || "Offline. Showing your saved copy.");
+    }
+    render();
+  }
+
+  async function save(message) {
+    data.synced = today();
+    const body = JSON.stringify(data, null, 2) + "\n";
+    const r = await fetch(api(), {
+      method: "PUT", headers: { ...ghHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ message, content: b64encode(body), sha, branch: settings.branch || CFG.branch }),
+    });
+    if (r.status === 409 || r.status === 422) { toast("Someone else changed the list. Reloaded it; try again."); await load(); return false; }
+    if (!r.ok) { toast("Save failed (GitHub " + r.status + "). Nothing was changed."); return false; }
+    const j = await r.json();
+    sha = j.content.sha;
+    store.set("cache", data);
+    render();
+    return true;
+  }
+
+  // ---------- helpers ----------
+  const today = () => new Date().toISOString().slice(0, 10);
+  const daysSince = (d) => Math.max(0, Math.floor((Date.now() - new Date(d + "T12:00:00").getTime()) / 864e5));
+  function ageText(d) {
+    if (!d) return "";
+    const n = daysSince(d);
+    if (n === 0) return "today";
+    if (n === 1) return "yesterday";
+    if (n < 14) return n + "d ago";
+    if (n < 60) return Math.round(n / 7) + "w ago";
+    return Math.round(n / 30) + "mo ago";
+  }
+  const fmtDate = (d) => d ? new Date(d + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "";
+  const catOf = (k) => CATS.find((c) => c.key === k) || CATS[0];
+  const sessionUrl = (id) => "https://claude.ai/code/" + id;
+  const repoUrl = (r) => "https://github.com/" + (r.includes("/") ? r : "chud575/" + r);
+  let toastTimer;
+  function toast(msg) {
+    document.querySelectorAll(".toast").forEach((t) => t.remove());
+    const t = el("div", { class: "toast", role: "status", text: msg });
+    document.body.append(t);
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.remove(), 3200);
+  }
+  async function copy(text, done) {
+    try { await navigator.clipboard.writeText(text); toast(done); }
+    catch {
+      const ta = el("textarea", { readonly: true, style: "position:fixed;top:0;left:0;opacity:0" }); ta.value = text; document.body.append(ta); ta.select();
+      let ok = false; try { ok = document.execCommand("copy"); } catch {}
+      ta.remove(); toast(ok ? done : "Couldn't copy. Long-press the text to copy it instead.");
+    }
+  }
+  const resumePrompt = (p) => [
+    `Let's pick up "${p.name}".`,
+    p.status && `Where we left off: ${p.status}`,
+    p.next && `Next step: ${p.next}`,
+    p.repos?.length && `Repo: ${p.repos.map((r) => (r.includes("/") ? r : "chud575/" + r)).join(", ")}`,
+  ].filter(Boolean).join("\n");
+
+  // ---------- render ----------
+  function render() {
+    const ps = data.projects || [];
+    $("#subline").textContent = `${ps.filter((p) => p.category === "in_progress").length} in progress · last synced ${fmtDate(data.synced) || "never"}`;
+
+    const actions = $("#actions"); actions.replaceChildren();
+    if (canEdit()) actions.append(el("button", { class: "btn primary", onclick: () => openEdit(null) }, "+ Add project"));
+    if (CFG.mode !== "artifact") {
+      actions.append(el("button", { class: "btn", onclick: () => load().then(() => toast("Refreshed")) }, "Refresh"));
+      actions.append(el("button", { class: "btn", onclick: openSettings }, "Settings"));
+    }
+
+    const waiting = ps.filter((p) => p.waiting && p.category === "in_progress").sort((a, b) => (b.updated || "").localeCompare(a.updated || ""));
+    $("#waiting").hidden = !waiting.length;
+    $("#waiting-h").textContent = `Waiting on you · ${waiting.length}`;
+    $("#waiting-list").replaceChildren(...waiting.map((p) => el("li", {}, el("button", { onclick: () => openDetail(p.id) }, el("b", { text: p.name }), el("span", { text: p.waiting })))));
+
+    $("#tabs").replaceChildren(...CATS.map((c) => el("button", {
+      class: "tab", role: "tab", "aria-selected": String(ui.tab === c.key),
+      onclick: () => { ui.tab = c.key; store.set("tab", c.key); render(); },
+    }, el("span", { class: "dot", style: `background:${c.color}` }), c.label, el("span", { class: "count", text: String(ps.filter((p) => p.category === c.key).length) }))));
+
+    $("#areas").replaceChildren(...["all", ...AREAS].map((a) => el("button", {
+      class: "chip", "aria-pressed": String(ui.area === a),
+      onclick: () => { ui.area = a; store.set("area", a); render(); },
+    }, a === "all" ? "All" : a)));
+    $("#sort").value = ui.sort;
+
+    const q = ui.q.trim().toLowerCase();
+    let list = ps.filter((p) => p.category === ui.tab && (ui.area === "all" || p.area === ui.area));
+    if (q) list = list.filter((p) => [p.name, p.summary, p.status, p.next, p.waiting, p.area, ...(p.repos || [])].join(" ").toLowerCase().includes(q));
+    const by = { recent: (a, b) => (b.updated || "").localeCompare(a.updated || ""), stale: (a, b) => (a.updated || "").localeCompare(b.updated || ""), name: (a, b) => a.name.localeCompare(b.name) };
+    list.sort(by[ui.sort] || by.recent);
+
+    const grid = $("#grid");
+    if (!list.length) {
+      grid.replaceChildren(el("div", { class: "empty" }, q || ui.area !== "all" ? "Nothing matches that filter." : `Nothing in ${catOf(ui.tab).label} yet.`));
+    } else {
+      grid.replaceChildren(...list.map(card));
+    }
+
+    const foot = $("#foot"); foot.replaceChildren();
+    foot.append(el("div", { text: `${source || ""}${source ? " · " : ""}${ps.length} projects tracked.` }));
+    foot.append(el("div", { text: CFG.mode === "artifact"
+      ? "This copy updates whenever Claude syncs the list. To change something, tell Claude in any Claude Code chat on the ClaudesUnfinishedBusiness repo, e.g. “move Red Baron to Complete”."
+      : canEdit() ? "Edits save straight to GitHub." : "Read-only. Add a GitHub token in Settings to edit from here, or ask Claude to update it." }));
+  }
+
+  function card(p) {
+    const cat = catOf(p.category);
+    const n = daysSince(p.updated);
+    const quiet = p.category === "in_progress" && n >= QUIET_DAYS;
+    return el("button", { class: "card", onclick: () => openDetail(p.id), "aria-label": `${p.name}, ${cat.label}` },
+      el("span", { class: "stripe", style: `background:${p.waiting && p.category === "in_progress" ? "var(--waiting)" : cat.color}` }),
+      el("div", { class: "meta" },
+        el("span", { class: "area", text: p.area || "Other" }),
+        p.waiting && p.category === "in_progress" ? el("span", { class: "pill wait", text: "Your move" }) : null,
+        p.unsure ? el("span", { class: "pill unsure", title: "Claude guessed some of these details. Check and correct them.", text: "Check me" }) : null,
+        el("span", { class: "age mono" + (quiet ? " quiet" : ""), title: fmtDate(p.updated), text: quiet ? "quiet " + ageText(p.updated).replace(" ago", "") : ageText(p.updated) })),
+      el("h3", { text: p.name }),
+      p.status ? el("p", { class: "status", text: p.status }) : null,
+      p.next ? el("p", { class: "next" }, el("b", { text: "Next: " }), p.next) : null);
+  }
+
+  // ---------- sheets ----------
+  let scrim = null;
+  function closeSheet() { scrim?.remove(); scrim = null; }
+  function sheet(...content) {
+    closeSheet();
+    const s = el("div", { class: "sheet", role: "dialog", "aria-modal": "true" }, ...content);
+    scrim = el("div", { class: "scrim", onclick: (e) => { if (e.target === scrim) closeSheet(); } }, s);
+    document.body.append(scrim);
+    s.querySelector("button, input, textarea")?.focus({ preventScroll: true });
+    return s;
+  }
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSheet(); });
+  const head = (title, sub) => el("div", { class: "sheet-head" }, el("div", {}, el("h2", { text: title }), sub ? el("p", { class: "summary", text: sub }) : null), el("button", { class: "close", "aria-label": "Close", onclick: closeSheet }, "×"));
+  const field = (label, text, cls) => text ? el("div", { class: "field" + (cls ? " " + cls : "") }, el("h4", { text: label }), el("p", { text })) : null;
+
+  function openDetail(id) {
+    const p = data.projects.find((x) => x.id === id); if (!p) return;
+    const links = [
+      ...(p.links || []).map((l) => [l.label, l.url]),
+      ...(p.repos || []).map((r) => ["GitHub: " + r, repoUrl(r)]),
+    ];
+    sheet(
+      head(p.name, p.summary),
+      el("div", { class: "row mono", style: "color:var(--muted)" }, `${p.area || "Other"} · ${catOf(p.category).label} · updated ${fmtDate(p.updated)}`),
+      canEdit() ? el("div", { class: "seg", role: "group", "aria-label": "Move to" }, ...CATS.map((c) => el("button", {
+        "aria-pressed": String(p.category === c.key),
+        onclick: async () => { if (p.category === c.key) return; const prev = p.category; p.category = c.key; p.updated = today(); if (await save(`Move ${p.name} to ${c.label}`)) { toast(`Moved to ${c.label}`); openDetail(p.id); } else p.category = prev; },
+      }, c.label))) : null,
+      field("Waiting on you", p.category === "in_progress" ? p.waiting : "", "wait"),
+      field("Where we're at", p.status),
+      field("Next step", p.next),
+      p.unsure ? el("p", { class: "note" }, "Claude pieced this one together from repo and session names, so some details may be off.") : null,
+      links.length ? el("div", { class: "field" }, el("h4", { text: "Links" }), el("ul", { class: "list" }, ...links.map(([t, u]) => el("li", {}, el("a", { href: u, target: "_blank", rel: "noopener" }, t))))) : null,
+      p.sessions?.length ? el("div", { class: "field" }, el("h4", { text: "Claude sessions" }), el("ul", { class: "list" }, ...p.sessions.map((s) => el("li", {}, el("a", { href: sessionUrl(s.id), target: "_blank", rel: "noopener" }, s.title))))) : null,
+      el("div", { class: "row" },
+        el("button", { class: "btn primary", onclick: () => copy(resumePrompt(p), "Copied. Paste it into Claude to pick up where you left off.") }, "Copy resume prompt"),
+        canEdit() ? el("button", { class: "btn", onclick: () => openEdit(p.id) }, "Edit") : null),
+    );
+  }
+
+  function openEdit(id) {
+    const p = id ? data.projects.find((x) => x.id === id) : { name: "", area: "Other", category: "in_progress", summary: "", status: "", next: "", waiting: "", repos: [], links: [], sessions: [] };
+    const f = (name, label, value, multi) => el("label", {}, label, multi ? Object.assign(el("textarea", { id: "f-" + name, name }), { value: value || "" }) : el("input", { id: "f-" + name, name, value: value || "" }));
+    const area = el("select", { id: "f-area", name: "area" }, ...AREAS.map((a) => el("option", { value: a, selected: a === p.area }, a)));
+    const cat = el("select", { id: "f-category", name: "category" }, ...CATS.map((c) => el("option", { value: c.key, selected: c.key === p.category }, c.label)));
+    const form = el("form", { class: "edit" },
+      f("name", "Name", p.name),
+      el("div", { class: "row", style: "display:grid;grid-template-columns:1fr 1fr;gap:12px" }, el("label", {}, "Area", area), el("label", {}, "Status", cat)),
+      f("summary", "What it is", p.summary, true),
+      f("status", "Where we're at", p.status, true),
+      f("next", "Next step", p.next, true),
+      f("waiting", "Waiting on you (blank if nothing)", p.waiting, true),
+      f("repos", "Repos (comma separated)", (p.repos || []).join(", ")),
+      el("div", { class: "row" }, el("button", { class: "btn primary", type: "submit" }, id ? "Save changes" : "Add project"), el("button", { class: "btn", type: "button", onclick: () => (id ? openDetail(id) : closeSheet()) }, "Cancel")));
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const v = Object.fromEntries(new FormData(form));
+      if (!v.name.trim()) return toast("Give the project a name.");
+      const next = { ...p, name: v.name.trim(), area: v.area, category: v.category, summary: v.summary.trim(), status: v.status.trim(), next: v.next.trim(), waiting: v.waiting.trim(), repos: v.repos.split(",").map((s) => s.trim()).filter(Boolean), updated: today() };
+      delete next.unsure;
+      const snapshot = JSON.stringify(data.projects);
+      if (id) data.projects[data.projects.indexOf(p)] = next;
+      else { next.id = next.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-" + Date.now().toString(36).slice(-4); data.projects.push(next); }
+      if (await save(`${id ? "Update" : "Add"} ${next.name}`)) { toast("Saved"); ui.tab = next.category; openDetail(next.id); }
+      else data.projects = JSON.parse(snapshot);
+    });
+    sheet(head(id ? "Edit " + p.name : "New project"), form);
+  }
+
+  function openSettings() {
+    const tok = el("input", { id: "s-token", type: "password", autocomplete: "off", placeholder: "github_pat_…" }); tok.value = settings.token || "";
+    const br = el("input", { id: "s-branch" }); br.value = settings.branch || CFG.branch;
+    const form = el("form", { class: "edit" },
+      el("p", { class: "note" }, "Without a token, the app reads the list from GitHub and you ask Claude to make changes. Add a token to move and edit projects right here."),
+      el("label", {}, "GitHub token", tok),
+      el("p", { class: "note" }, `Create a fine-grained token at github.com/settings/personal-access-tokens with access to only ${CFG.repo} and “Contents: Read and write”. It is stored on this device only.`),
+      el("label", {}, "Branch", br),
+      el("div", { class: "row" }, el("button", { class: "btn primary", type: "submit" }, "Save settings"), settings.token ? el("button", { class: "btn", type: "button", onclick: () => { settings.token = ""; store.set("settings", settings); closeSheet(); load(); toast("Token removed"); } }, "Remove token") : null));
+    form.addEventListener("submit", (e) => { e.preventDefault(); settings.token = tok.value.trim(); settings.branch = br.value.trim() || CFG.branch; store.set("settings", settings); closeSheet(); load().then(() => toast("Settings saved")); });
+    sheet(head("Settings"), form);
+  }
+
+  $("#q").addEventListener("input", (e) => { ui.q = e.target.value; render(); });
+  $("#sort").addEventListener("change", (e) => { ui.sort = e.target.value; store.set("sort", ui.sort); render(); });
+  if (CFG.mode === "pwa" && "serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+  load();
+})();
+</script>
+
+</body>
+</html>

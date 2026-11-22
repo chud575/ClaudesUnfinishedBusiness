@@ -10,6 +10,9 @@ In progress, Complete or Abandoned.
 - `node build.mjs` writes:
   - `docs/` holds the installable web app served by GitHub Pages. It reads `data/projects.json` live from the `main` branch.
   - `artifact/index.html` is the claude.ai Artifact (the view inside the Claude app), with the list embedded.
+  - `site/ClaudesProjectDashboard.html` is the admin-only page at shakybetspokertools.com/ClaudesProjectDashboard.html.
+    It reads `data/projects.json` live from `main`, so data updates need no deploy. Only a UI change needs copying into
+    the ShakyBets-Site repo (`auth/ClaudesProjectDashboard.html`) and `./deploy.sh auth` from the owner's Mac.
 - Claude app view (Artifact): see `ARTIFACT_URL` below.
 
 ARTIFACT_URL: https://claude.ai/artifact/WvkEFL5j4uzG19Q17JkpCU

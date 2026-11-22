@@ -1,6 +1,7 @@
 // Builds the two copies of the dashboard from src/app.html + data/projects.json:
 //   docs/index.html      installable web app (GitHub Pages), reads the list live from GitHub
 //   artifact/index.html  claude.ai Artifact (Claude app view), list embedded at build time
+//   site/ClaudesProjectDashboard.html  admin-only page on shakybetspokertools.com, reads the list live from GitHub
 // Run: node build.mjs
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from "node:fs";
 
@@ -31,8 +32,21 @@ mkdirSync("docs", { recursive: true });
 writeFileSync("docs/index.html", pwaHead + app.replace("<!--CUB:CONFIG-->", `<script>window.CUB={mode:"pwa"}</script>`) + "\n</body>\n</html>\n");
 copyFileSync("data/projects.json", "docs/projects.json");
 
+// shakybetspokertools.com/ClaudesProjectDashboard.html (admins only, served by the accounts service)
+mkdirSync("site", { recursive: true });
+writeFileSync("site/ClaudesProjectDashboard.html", `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}</style>
+</head>
+<body>
+` + app.replace("<!--CUB:CONFIG-->", `<script>window.CUB={mode:"site"}</script>`) + "\n</body>\n</html>\n");
+
 const seed = JSON.stringify(JSON.parse(data)).replace(/</g, "\\u003c");
 mkdirSync("artifact", { recursive: true });
 writeFileSync("artifact/index.html", app.replace("<!--CUB:CONFIG-->", `<script>window.CUB={mode:"artifact"}</script>\n<script type="application/json" id="cub-seed">${seed}</script>`));
 
-console.log("Built docs/index.html and artifact/index.html");
+console.log("Built docs/index.html, artifact/index.html and site/ClaudesProjectDashboard.html");
